@@ -1,9 +1,6 @@
 from flask import Flask, request, abort
 from dotenv import dotenv_values
-import requests
-from mutagen.mp3 import MP3
-import tempfile
-import urllib
+from .speech import Speech
 
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
@@ -45,28 +42,18 @@ def callback():
     return "OK"
 
 
-def get_audio_len_from_url(url):
-    response = requests.get(url)
-    tmp = tempfile.NamedTemporaryFile()
-    with open(tmp.name, "wb") as f:
-        f.write(response.content)
-    audio = MP3(tmp.name)
-    return int(audio.info.length * 1000)
-
-
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
-        mp3_file_name = urllib.parse.quote(event.message.text)
-        audio_url = f"https://speech.voicetube.com/lang/en-US/pitch/1/speakingRate/1/{mp3_file_name}.mp3"
+        speech = Speech(event.message.text)
         line_bot_api.reply_message_with_http_info(
             ReplyMessageRequest(
                 reply_token=event.reply_token,
                 messages=[
                     AudioMessage(
-                        originalContentUrl=audio_url,
-                        duration=get_audio_len_from_url(audio_url),
+                        originalContentUrl=speech.get_url(),
+                        duration=speech.get_duration(),
                     )
                 ],
             )
