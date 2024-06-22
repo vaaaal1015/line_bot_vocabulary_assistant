@@ -1,6 +1,6 @@
 import unittest
 from context import *
-from speech import Speech
+from src.speech import Speech
 
 
 class TestSpeech(unittest.TestCase):
