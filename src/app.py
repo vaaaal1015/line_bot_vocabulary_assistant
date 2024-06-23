@@ -9,7 +9,6 @@ from linebot.v3.messaging import (
     ApiClient,
     MessagingApi,
     ReplyMessageRequest,
-    TextMessage,
     AudioMessage,
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
@@ -36,7 +35,8 @@ def callback():
         handler.handle(body, signature)
     except InvalidSignatureError:
         app.logger.info(
-            "Invalid signature. Please check your channel access token/channel secret."
+            r"Invalid signature. "
+            r"Please check your channel access token/channel secret."
         )
         abort(400)
     return "OK"
@@ -56,8 +56,7 @@ def handle_message(event):
                         duration=speech.get_duration(),
                     )
                 ],
-            )
-        )
+            ))
 
 
 if __name__ == "__main__":
