@@ -9,8 +9,10 @@ charset-normalizer==3.3.2
 click==8.1.7
 Deprecated==1.2.14
 Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
 frozenlist==1.4.1
 future==1.0.0
+greenlet==3.0.3
 idna==3.7
 itsdangerous==2.2.0
 Jinja2==3.1.4
@@ -24,6 +26,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 requests==2.31.0
 six==1.16.0
+SQLAlchemy==2.0.31
 typing_extensions==4.12.2
 urllib3==2.2.2
 Werkzeug==3.0.3
