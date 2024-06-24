@@ -3,7 +3,8 @@ from mutagen.mp3 import MP3
 import tempfile
 import urllib
 
-TTS_BASE_URL = 'https://speech.voicetube.com/lang/en-US/pitch/1/speakingRate/1/'
+TTS_BASE_URL = (
+    "https://speech.voicetube.com/lang/en-US/pitch/1/speakingRate/1/")
 
 
 class Speech:
