@@ -1,4 +1,4 @@
-from ..shared.db import db
+from shared.db import db
 from sqlalchemy.orm import Mapped, mapped_column
 
 

@@ -1,84 +1,68 @@
 from flask import Flask, request, abort
-from dotenv import dotenv_values
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.messaging import (
-    Configuration,
-    ApiClient,
-    MessagingApi,
-    ReplyMessageRequest,
-    TextMessage,
-    #   ButtonsTemplate, TemplateMessage,
-    MessageAction,
-    FlexMessage,
-    FlexBubble,
-    FlexBox,
-    FlexText,
-    FlexButton)
+from linebot.v3.messaging import (Configuration, ApiClient, MessagingApi,
+                                  ReplyMessageRequest, TextMessage,
+                                  MessageAction, FlexMessage, FlexBubble,
+                                  FlexBox, FlexText, FlexButton)
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
-from .shared.db import db
-from .models.vocabulary import Vocabulary
-from math import ceil
+from shared.db import db
+from models.vocabulary import Vocabulary
 from sqlalchemy.sql.expression import func
-from sqlalchemy.orm.exc import NoResultFound, MultipleResultsFound
 import random
+from settings import (CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET,
+                      SQLALCHEMY_DATABASE_URI)
+from sqlalchemy import select, delete
 
 app = Flask(__name__)
-app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///project.db"
+app.config["SQLALCHEMY_DATABASE_URI"] = SQLALCHEMY_DATABASE_URI
 db.init_app(app)
 with app.app_context():
     db.create_all()
 
-config = dotenv_values(dotenv_path="../.env")
-
-configuration = Configuration(access_token=config["CHANNEL_ACCESS_TOKEN"])
-handler = WebhookHandler(config["CHANNEL_SECRET"])
+configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
+handler = WebhookHandler(CHANNEL_SECRET)
 
 
 def add_vocabulary(english: str, chinese: str) -> TextMessage:
-    app.logger.debug(f"enginsh:{english}")
-    app.logger.debug(f"chinese:{chinese}")
-    exists = Vocabulary.query.filter_by(english=english).first()
+    exists = db.session.execute(
+        select(Vocabulary).where(Vocabulary.english == english)).scalar()
     if exists:
         return TextMessage(text="新增失敗，單字已存在")
-    vocabulary = Vocabulary(english=english, chinese=chinese)
-    db.session.add(vocabulary)
+    db.session.add(Vocabulary(english=english, chinese=chinese))
     db.session.commit()
     return TextMessage(text="新增成功")
 
 
 def list_vocabulary(page: int) -> TextMessage:
-    if page == 0:
-        count = Vocabulary.query.count()
-        return TextMessage(text=f"總頁數:{ceil(count / 10)}")
-    obj = Vocabulary.query.order_by(Vocabulary.id.asc())
-    page_objs = obj.paginate(
-        page=page,
-        per_page=10,
-    ).items
-    string = f"第{page}頁\n"
-    string = string + "\n".join(map(str, page_objs))
+    if page <= 0:
+        page = 1
+    pagination = db.paginate(select=select(Vocabulary).order_by(Vocabulary.id),
+                             page=page,
+                             per_page=10)
+    string = f"第{pagination.page}頁, 共{pagination.pages}頁\n" + "\n".join(
+        map(str, pagination))
     return TextMessage(text=string)
 
 
 def remove_vocabulary(english: str) -> TextMessage:
-    count = Vocabulary.query.filter_by(english=english).delete()
+    vocabulary = db.session.execute(
+        delete(Vocabulary).where(
+            Vocabulary.english == english).returning(Vocabulary)).scalar()
     db.session.commit()
-    if count == 0:
-        return TextMessage(text="刪除失敗，沒有該單字")
-    return TextMessage(text="刪除成功")
+    if vocabulary:
+        return TextMessage(text="刪除成功")
+    return TextMessage(text="刪除失敗，沒有該單字")
 
 
 def exam_vocabulary() -> FlexMessage:
-    question = Vocabulary.query.order_by(Vocabulary.point,
-                                         func.random()).first()
-    selection = Vocabulary.query.filter(Vocabulary.id != question.id).order_by(
-        func.random()).limit(4).all()
-    selection.append(question)
+    selection = db.session.execute(
+        select(Vocabulary).order_by(Vocabulary.point,
+                                    func.random()).limit(5)).scalars().all()
     buttons = [
         FlexButton(action=MessageAction(
             label=item.chinese,
-            text=f":ans {question.english} {item.chinese}"))
+            text=f":ans {selection[0].english} {item.chinese}"))
         for item in selection
     ]
     random.shuffle(buttons)
@@ -88,27 +72,24 @@ def exam_vocabulary() -> FlexMessage:
                            header=FlexBox(
                                layout="vertical",
                                alignItems="center",
-                               contents=[FlexText(text=question.english)]),
+                               contents=[FlexText(text=selection[0].english)]),
                            body=FlexBox(layout="vertical", contents=buttons)))
 
 
 def answer_vocabulary(question: str, answer: str) -> TextMessage:
-    try:
-        vocabulary = Vocabulary.query.filter_by(english=question).one()
+    vocabulary = db.session.execute(
+        select(Vocabulary).where(Vocabulary.english == question)).scalar()
+    if vocabulary:
         if vocabulary.chinese == answer:
             vocabulary.bonus_point()
-            reply = "回答正確"
+            reply = TextMessage(text="回答正確")
         else:
             vocabulary.deduct_point()
-            reply = f"回答錯誤，{str(vocabulary)}"
-        Vocabulary.query.filter_by(english=question).update(
-            {Vocabulary.point: vocabulary.point})
+            reply = TextMessage(text=f"回答錯誤，{str(vocabulary)}")
         db.session.commit()
-        return TextMessage(text=reply)
-    except NoResultFound:
+        return reply
+    else:
         return TextMessage(text="回答失敗，沒有該單字")
-    except MultipleResultsFound:
-        return TextMessage(text="錯誤")
 
 
 @app.route("/callback", methods=["POST"])

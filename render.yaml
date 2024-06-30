@@ -1,0 +1,16 @@
+services:
+- type: web
+  name: line_bot_vocabulary_assistant
+  env: python
+  repo: https://github.com/vaaaal1015/line_bot_vocabulary_assistant.git
+  buildCommand: pip install -r requirements.txt
+  startCommand: cd src;gunicorn app:app
+  plan: free
+  autoDeploy: false
+  envVars:
+  - key: LINE_CHANNEL_ACCESS_TOKEN
+    sync: false
+  - key: LINE_CHANNEL_SECRET
+    sync: false
+  - key: SQLALCHEMY_DATABASE_URI
+    sync: false
