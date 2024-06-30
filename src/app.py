@@ -4,7 +4,7 @@ from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (Configuration, ApiClient, MessagingApi,
                                   ReplyMessageRequest, TextMessage,
                                   MessageAction, FlexMessage, FlexBubble,
-                                  FlexBox, FlexText, FlexButton)
+                                  FlexBox, FlexText, FlexButton, Emoji)
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 from shared.db import db
 from models.vocabulary import Vocabulary
@@ -130,6 +130,14 @@ def handle_message(event):
             messages = exam_vocabulary()
         elif (msg[0] == ":ans" and len(msg) == 3):
             messages = answer_vocabulary(question=msg[1], answer=msg[2])
+        elif (msg[0] == ":love"):
+            messages = TextMessage(
+                text="$ Tony love you.",
+                emojis=[
+                    Emoji(index=0,
+                          productId="5ac220c2031a6752fb806d60",
+                          emojiId="110")
+                ])
         else:
             messages = TextMessage(text="失敗，沒有符合的指令")
 
